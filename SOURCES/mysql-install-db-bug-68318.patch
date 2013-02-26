@@ -1,0 +1,79 @@
+diff --git a/scripts/mysql_install_db.pl.in b/scripts/mysql_install_db.pl.in
+index 30bff5a..309ec13 100644
+--- a/scripts/mysql_install_db.pl.in
++++ b/scripts/mysql_install_db.pl.in
+@@ -421,35 +421,6 @@ if ( ! $print_defaults )
+ -x $print_defaults or -f "$print_defaults.exe"
+   or cannot_find_file($print_defaults);
+ 
+-my $config_file;
+-my $copy_cfg_file;
+-
+-# ----------------------------------------------------------------------
+-# This will be the default config file
+-# ----------------------------------------------------------------------
+-
+-$config_file= "$basedir/my.cnf";
+-
+-my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
+-				  "share","share/mysql","support-files");
+--e $cfg_template or cannot_find_file("my-default.cnf");
+-
+-$copy_cfg_file= $config_file;
+-if (-e $copy_cfg_file)
+-{
+-  $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
+-  # Too early to print warning here, the user may not notice
+-}
+-open (TEMPL, $cfg_template) or error("Could not open config template");
+-open (CFG, "> $copy_cfg_file") or error("Could not open config file");
+-while (<TEMPL>)
+-{
+-  # Remove lines beginning with # *** which are template comments
+-  print CFG $_ unless /^# \*\*\*/;
+-}
+-close CFG;
+-close TEMPL;
+-
+ # ----------------------------------------------------------------------
+ # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
+ # in the my.cfg file, then re-run to merge with command line arguments.
+@@ -460,13 +431,9 @@ if ( $opt->{'defaults-file'} )
+ {
+   $print_def_file= $opt->{'defaults-file'};
+ }
+-else
+-{
+-  $print_def_file= $config_file;
+-}
+ 
+ my @default_options;
+-my $cmd = quote_options($print_defaults,"--defaults-file=$print_def_file",
++my $cmd = quote_options($print_defaults,$print_def_file?"--defaults-file=$print_def_file":"",
+                         "mysqld","mysql_install_db");
+ open(PIPE, "$cmd |") or error($opt,"can't run $cmd: $!");
+ while ( <PIPE> )
+@@ -838,23 +805,6 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
+            "",
+            "Support MySQL by buying support/licenses at http://shop.mysql.com");
+ 
+-    if ($copy_cfg_file eq $config_file)
+-    {
+-      report($opt,
+-	     "New default config file was created as $config_file and",
+-	     "will be used by default by the server when you start it.",
+-	     "You may edit this file to change server settings");
+-    }
+-    else
+-    {
+-      warning($opt,
+-	      "Found existing config file $config_file on the system.",
+-	      "Because this file might be in use, it was not replaced,",
+-	      "but was used in bootstrap (unless you used --defaults-file)",
+-	      "and when you later start the server.",
+-	      "The new default config file was created as $copy_cfg_file,",
+-	      "please compare it with your file and take the changes you need.");
+-    }
+     foreach my $cfg ( "/etc/my.cnf", "/etc/mysql/my.cnf" )
+     {
+       check_sys_cfg_file ($opt, $cfg);

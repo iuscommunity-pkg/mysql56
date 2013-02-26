@@ -1,0 +1,60 @@
+diff --git a/mysys/my_gethwaddr.c b/mysys/my_gethwaddr.c
+index e2399c5..43ee160 100644
+--- a/mysys/my_gethwaddr.c
++++ b/mysys/my_gethwaddr.c
+@@ -68,28 +68,47 @@ err:
+ #include <sys/ioctl.h>
+ #include <net/ethernet.h>
+ 
++#define MAX_IFS 64
++
+ my_bool my_gethwaddr(uchar *to)
+ {
+   int fd, res= 1;
+   struct ifreq ifr;
+   char zero_array[ETHER_ADDR_LEN] = {0};
++  struct ifconf ifc;
++  struct ifreq ifs[MAX_IFS], *ifri, *ifend;
+ 
+   fd = socket(AF_INET, SOCK_DGRAM, 0);
+   if (fd < 0)
+     goto err;
+ 
+-  memset(&ifr, 0, sizeof(ifr));
+-  strnmov(ifr.ifr_name, "eth0", sizeof(ifr.ifr_name) - 1);
++  ifc.ifc_len = sizeof(ifs);
++  ifc.ifc_req = ifs;
++  if (ioctl(fd, SIOCGIFCONF, &ifc) < 0)
++  {
++    close(fd);
++    goto err;
++  }
++
++  memcpy(to, zero_array, ETHER_ADDR_LEN);
+ 
+-  do
++  ifend = ifs + (ifc.ifc_len / sizeof(struct ifreq));
++  for (ifri = ifc.ifc_req; ifri < ifend; ifri++)
+   {
+-    if (ioctl(fd, SIOCGIFHWADDR, &ifr) >= 0)
++    if (ifri->ifr_addr.sa_family == AF_INET)
+     {
+-      memcpy(to, &ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
+-      res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1;
++      memset(&ifr, 0, sizeof(ifr));
++      strncpy(ifr.ifr_name, ifri->ifr_name, sizeof(ifr.ifr_name));
++      
++      /* Get HW address */
++      if (ioctl(fd, SIOCGIFHWADDR, &ifr) >= 0)
++      {
++        memcpy(to, &ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
++        if (!(res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1))
++          break;
++      }
+     }
+-  } while (res && (errno == 0 || errno == ENODEV) && ifr.ifr_name[3]++ < '6');
+-
++  }
+   close(fd);
+ err:
+   return res;

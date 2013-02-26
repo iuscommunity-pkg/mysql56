@@ -1,0 +1,31 @@
+diff --git a/extra/yassl/src/ssl.cpp b/extra/yassl/src/ssl.cpp
+index 793aa80..c8396c2 100644
+--- a/extra/yassl/src/ssl.cpp
++++ b/extra/yassl/src/ssl.cpp
+@@ -1625,10 +1625,10 @@ unsigned long ERR_get_error()
+     }
+ 
+ 
+-    int SSL_CTX_use_certificate_chain_file(SSL_CTX*, const char*)
++    int SSL_CTX_use_certificate_chain_file(SSL_CTX* ctx, const char* file)
+     {
+-        // TDOD:
+-        return SSL_SUCCESS;
++        // For the moment, treat like use_certificate_file
++        return read_file(ctx, file, SSL_FILETYPE_PEM, Cert);
+     }
+ 
+ 
+diff --git a/vio/viosslfactories.c b/vio/viosslfactories.c
+index 9205999..171adff 100644
+--- a/vio/viosslfactories.c
++++ b/vio/viosslfactories.c
+@@ -106,7 +106,7 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
+     key_file= cert_file;
+ 
+   if (cert_file &&
+-      SSL_CTX_use_certificate_file(ctx, cert_file, SSL_FILETYPE_PEM) <= 0)
++      SSL_CTX_use_certificate_chain_file(ctx, cert_file) <= 0)
+   {
+     *error= SSL_INITERR_CERT;
+     DBUG_PRINT("error",("%s from file '%s'", sslGetErrString(*error), cert_file));

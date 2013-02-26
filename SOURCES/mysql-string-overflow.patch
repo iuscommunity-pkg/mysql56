@@ -1,0 +1,26 @@
+diff --git a/sql/sql_prepare.cc b/sql/sql_prepare.cc
+index 05e03e5..b9e11cd 100644
+--- a/sql/sql_prepare.cc
++++ b/sql/sql_prepare.cc
+@@ -2956,7 +2956,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
+   {
+     stmt->state= Query_arena::STMT_ERROR;
+     stmt->last_errno= thd->get_stmt_da()->sql_errno();
+-    strncpy(stmt->last_error, thd->get_stmt_da()->message(), MYSQL_ERRMSG_SIZE);
++    strncpy(stmt->last_error, thd->get_stmt_da()->message(), sizeof(stmt->last_error)-1);
+   }
+   thd->set_stmt_da(save_stmt_da);
+ 
+diff --git a/sql/sql_trigger.cc b/sql/sql_trigger.cc
+index c99572e..1499dd1 100644
+--- a/sql/sql_trigger.cc
++++ b/sql/sql_trigger.cc
+@@ -2303,7 +2303,7 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
+ void Table_triggers_list::set_parse_error_message(char *error_message)
+ {
+   m_has_unparseable_trigger= true;
+-  strcpy(m_parse_error_message, error_message);
++  strncpy(m_parse_error_message, error_message, sizeof(m_parse_error_message)-1);
+ }
+ 
+ 

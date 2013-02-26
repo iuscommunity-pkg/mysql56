@@ -1,0 +1,164 @@
+diff --git a/client/mysqladmin.cc b/client/mysqladmin.cc
+index b87a884..cf89716 100644
+--- a/client/mysqladmin.cc
++++ b/client/mysqladmin.cc
+@@ -23,6 +23,7 @@
+ #include <my_pthread.h>				/* because of signal()	*/
+ #include <sys/stat.h>
+ #include <mysql.h>
++#include <password.h>       /* my_make_scrambled_password_323, my_make_scrambled_password */
+ #include <sql_common.h>
+ #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+ #include <mysqld_error.h>                       /* to check server error codes */
+@@ -1045,9 +1046,9 @@ retry:
+           we will give one more try with old format.
+         */
+         if (old)
+-          make_scrambled_password_323(crypted_pw, typed_password);
++          my_make_scrambled_password_323(crypted_pw, typed_password, strlen(typed_password));
+         else
+-          make_scrambled_password(crypted_pw, typed_password);
++          my_make_scrambled_password_sha1(crypted_pw, typed_password, strlen(typed_password));
+       }
+       else
+ 	crypted_pw[0]=0;			/* No password */
+diff --git a/include/errmsg.h b/include/errmsg.h
+index 6f833f2..2df07cb 100644
+--- a/include/errmsg.h
++++ b/include/errmsg.h
+@@ -24,6 +24,7 @@ extern "C" {
+ #endif
+ void	init_client_errs(void);
+ void	finish_client_errs(void);
++#define client_errors mysql_client_errors		/* namespace sanity */
+ extern const char *client_errors[];	/* Error messages */
+ #ifdef	__cplusplus
+ }
+diff --git a/include/my_sys.h b/include/my_sys.h
+index b722954..621c48a 100644
+--- a/include/my_sys.h
++++ b/include/my_sys.h
+@@ -255,6 +255,7 @@ extern uint    my_large_page_size;
+ 
+ /* charsets */
+ #define MY_ALL_CHARSETS_SIZE 2048
++#define default_charset_info mysql_default_charset_info	/* namespace sanity */
+ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
+ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE];
+ extern CHARSET_INFO compiled_charsets[];
+@@ -919,6 +920,9 @@ extern uint get_charset_number(const char *cs_name, uint cs_flags);
+ extern uint get_collation_number(const char *name);
+ extern const char *get_charset_name(uint cs_number);
+ 
++#define get_charset mysql_get_charset		/* namespace sanity */
++#define get_charset_by_csname mysql_get_charset_by_csname
++
+ extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
+ extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
+ extern CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
+diff --git a/include/mysql.h.pp b/include/mysql.h.pp
+index 3a5c40d..5d02ab1 100644
+--- a/include/mysql.h.pp
++++ b/include/mysql.h.pp
+@@ -90,7 +90,7 @@ my_bool my_net_init(NET *net, Vio* vio);
+ void my_net_local_init(NET *net);
+ void net_end(NET *net);
+ void net_clear(NET *net, my_bool check_buffer);
+-my_bool net_realloc(NET *net, size_t length);
++my_bool mysql_net_realloc(NET *net, size_t length);
+ my_bool net_flush(NET *net);
+ my_bool my_net_write(NET *net,const unsigned char *packet, size_t len);
+ my_bool net_write_command(NET *net,unsigned char command,
+@@ -129,13 +129,11 @@ void randominit(struct rand_struct *, unsigned long seed1,
+ double my_rnd(struct rand_struct *);
+ void create_random_string(char *to, unsigned int length, struct rand_struct *rand_st);
+ void hash_password(unsigned long *to, const char *password, unsigned int password_len);
+-void make_scrambled_password_323(char *to, const char *password);
+ void scramble_323(char *to, const char *message, const char *password);
+ my_bool check_scramble_323(const unsigned char *reply, const char *message,
+                            unsigned long *salt);
+ void get_salt_from_password_323(unsigned long *res, const char *password);
+ void make_password_from_salt_323(char *to, const unsigned long *salt);
+-void make_scrambled_password(char *to, const char *password);
+ void scramble(char *to, const char *message, const char *password);
+ my_bool check_scramble(const unsigned char *reply, const char *message,
+                        const unsigned char *hash_stage2);
+diff --git a/include/mysql_com.h b/include/mysql_com.h
+index a25af23..6da912f 100644
+--- a/include/mysql_com.h
++++ b/include/mysql_com.h
+@@ -482,6 +482,7 @@ my_bool	my_net_init(NET *net, Vio* vio);
+ void my_net_local_init(NET *net);
+ void net_end(NET *net);
+ void net_clear(NET *net, my_bool check_buffer);
++#define net_realloc mysql_net_realloc		/* namespace sanity */
+ my_bool net_realloc(NET *net, size_t length);
+ my_bool	net_flush(NET *net);
+ my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
+@@ -559,14 +560,12 @@ double my_rnd(struct rand_struct *);
+ void create_random_string(char *to, unsigned int length, struct rand_struct *rand_st);
+ 
+ void hash_password(unsigned long *to, const char *password, unsigned int password_len);
+-void make_scrambled_password_323(char *to, const char *password);
+ void scramble_323(char *to, const char *message, const char *password);
+ my_bool check_scramble_323(const unsigned char *reply, const char *message,
+                            unsigned long *salt);
+ void get_salt_from_password_323(unsigned long *res, const char *password);
+ void make_password_from_salt_323(char *to, const unsigned long *salt);
+ 
+-void make_scrambled_password(char *to, const char *password);
+ void scramble(char *to, const char *message, const char *password);
+ my_bool check_scramble(const unsigned char *reply, const char *message,
+                        const unsigned char *hash_stage2);
+diff --git a/sql/password.c b/sql/password.c
+index 055a7e4..186a771 100644
+--- a/sql/password.c
++++ b/sql/password.c
+@@ -139,23 +139,6 @@ void my_make_scrambled_password_323(char *to, const char *password,
+ 
+ 
+ /*
+-  Wrapper around my_make_scrambled_password_323() to maintain client lib ABI
+-  compatibility.
+-  In server code usage of my_make_scrambled_password_323() is preferred to
+-  avoid strlen().
+-  SYNOPSIS
+-    make_scrambled_password_323()
+-    to        OUT store scrambled password here
+-    password  IN  NULL-terminated string with user-supplied password
+-*/
+-
+-void make_scrambled_password_323(char *to, const char *password)
+-{
+-  my_make_scrambled_password_323(to, password, strlen(password));
+-}
+-
+-
+-/*
+     Scramble string with password.
+     Used in pre 4.1 authentication phase.
+   SYNOPSIS
+@@ -459,23 +442,6 @@ void my_make_scrambled_password_sha1(char *to, const char *password,
+   
+ 
+ /*
+-  Wrapper around my_make_scrambled_password() to maintain client lib ABI
+-  compatibility.
+-  In server code usage of my_make_scrambled_password() is preferred to
+-  avoid strlen().
+-  SYNOPSIS
+-    make_scrambled_password()
+-    buf       OUT buffer of size 2*SHA1_HASH_SIZE + 2 to store hex string
+-    password  IN  NULL-terminated password string
+-*/
+-
+-void make_scrambled_password(char *to, const char *password)
+-{
+-  my_make_scrambled_password_sha1(to, password, strlen(password));
+-}
+-
+-
+-/*
+     Produce an obscure octet sequence from password and random
+     string, recieved from the server. This sequence corresponds to the
+     password, but password can not be easily restored from it. The sequence

@@ -1,0 +1,49 @@
+diff --git a/support-files/mysql-log-rotate.sh b/support-files/mysql-log-rotate.sh
+index 9e79e89..2ae1f3a 100644
+--- a/support-files/mysql-log-rotate.sh
++++ b/support-files/mysql-log-rotate.sh
+@@ -4,7 +4,7 @@
+ # follows:
+ #
+ # [mysqld]
+-# log-error=@localstatedir@/mysqld.log
++# log-error=/var/log/mysqld.log
+ #
+ # In case the root user has a password, then you
+ # have to create a /root/.my.cnf configuration file
+@@ -19,19 +19,19 @@
+ # ATTENTION: The /root/.my.cnf file should be readable
+ # _ONLY_ by root !
+ 
+-@localstatedir@/mysqld.log {
+-        # create 600 mysql mysql
+-        notifempty
+-        daily
+-        rotate 5
+-        missingok
+-        compress
+-    postrotate
+-	# just if mysqld is really running
+-	if test -x @bindir@/mysqladmin && \
+-	   @bindir@/mysqladmin ping &>/dev/null
+-	then
+-	   @bindir@/mysqladmin flush-logs
+-	fi
+-    endscript
+-}
++#/var/log/mysqld.log {
++#	create 640 mysql mysql
++#        notifempty
++#        daily
++#        rotate 5
++#        missingok
++#        compress
++#    postrotate
++#	# just if mysqld is really running
++#	if test -x @bindir@/mysqladmin && \
++#	   @bindir@/mysqladmin ping &>/dev/null
++#	then
++#	   @bindir@/mysqladmin flush-logs
++#	fi
++#    endscript
++#}

@@ -1,0 +1,39 @@
+diff --git a/mysql-test/suite/sys_vars/r/rpl_semi_sync_master_enabled_basic.result b/mysql-test/suite/sys_vars/r/rpl_semi_sync_master_enabled_basic.result
+index ad3ca0d..3e44451 100644
+--- a/mysql-test/suite/sys_vars/r/rpl_semi_sync_master_enabled_basic.result
++++ b/mysql-test/suite/sys_vars/r/rpl_semi_sync_master_enabled_basic.result
+@@ -45,7 +45,7 @@ set session rpl_semi_sync_master_enabled=1;
+ ERROR HY000: Variable 'rpl_semi_sync_master_enabled' is a GLOBAL variable and should be set with SET GLOBAL
+ select @@global.rpl_semi_sync_master_enabled;
+ @@global.rpl_semi_sync_master_enabled
+--1
++1
+ select @@session.rpl_semi_sync_master_enabled;
+ ERROR HY000: Variable 'rpl_semi_sync_master_enabled' is a GLOBAL variable
+ show global variables like 'rpl_semi_sync_master_enabled';
+diff --git a/mysql-test/suite/sys_vars/r/rpl_semi_sync_slave_enabled_basic.result b/mysql-test/suite/sys_vars/r/rpl_semi_sync_slave_enabled_basic.result
+index 25688f5..a23b160 100644
+--- a/mysql-test/suite/sys_vars/r/rpl_semi_sync_slave_enabled_basic.result
++++ b/mysql-test/suite/sys_vars/r/rpl_semi_sync_slave_enabled_basic.result
+@@ -45,7 +45,7 @@ set session rpl_semi_sync_slave_enabled=1;
+ ERROR HY000: Variable 'rpl_semi_sync_slave_enabled' is a GLOBAL variable and should be set with SET GLOBAL
+ select @@global.rpl_semi_sync_slave_enabled;
+ @@global.rpl_semi_sync_slave_enabled
+--1
++1
+ select @@session.rpl_semi_sync_slave_enabled;
+ ERROR HY000: Variable 'rpl_semi_sync_slave_enabled' is a GLOBAL variable
+ show global variables like 'rpl_semi_sync_slave_enabled';
+diff --git a/sql/sql_plugin.cc b/sql/sql_plugin.cc
+index 9d8fd52..21d32b0 100644
+--- a/sql/sql_plugin.cc
++++ b/sql/sql_plugin.cc
+@@ -2158,7 +2158,7 @@ static int check_func_bool(THD *thd, struct st_mysql_sys_var *var,
+       goto err;
+     result= (int) tmp;
+   }
+-  *(my_bool *) save= -result;
++  *(my_bool *) save= result ? true : false;
+   return 0;
+ err:
+   return 1;
